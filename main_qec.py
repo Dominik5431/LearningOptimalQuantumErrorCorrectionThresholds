@@ -6,6 +6,7 @@ import seaborn as sns
 import torch
 import torch.nn.functional as F
 import numpy as np
+from matplotlib.colors import to_rgba
 from numba import njit
 from scipy.optimize import curve_fit
 from tqdm import tqdm
@@ -49,6 +50,16 @@ finite_size_scaling = False
 n_layers_dict = {3: 3, 5: 3, 7: 3, 9: 3, 11: 3, 13: 3}
 d_model_dict = {3: 128, 5: 128, 7: 128, 9: 256, 11: 256, 13: 256}
 d_ff_dict = {3: 128, 5: 128, 7: 128, 9: 256, 11: 256, 13: 256}
+
+def lighten(color, amount):
+    """amount=0 → white, amount=1 → original color"""
+    r, g, b, a = to_rgba(color)
+    r = 1 - amount * (1 - r)
+    g = 1 - amount * (1 - g)
+    b = 1 - amount * (1 - b)
+    return (r, g, b, a)
+
+amounts = {0.7: 0.4, 0.8: 0.6, 0.9: 0.8, 0.95: 1.0}
 
 
 @njit
@@ -177,7 +188,7 @@ def merge_dictionaries(distances, noise_vals, eval_what, iteration, thresholds=N
                 super_dict = {}
                 for i, n in enumerate(noise_vals):
                     try:
-                        d = torch.load("data/{0}_{1}_{2}_{3}_{4}".format(eval_what, iteration, dist, n, t),
+                        d = torch.load("data/{0}_{1}_{2}_{3}_{4}.pt".format(eval_what, iteration, dist, n, t),
                                        map_location=torch.device('cpu'))
                     except FileNotFoundError:
                         d = {}
@@ -300,12 +311,12 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
                      pretrained_model=None, ax=None):
     noise_vals = [0.01, 0.02, 0.05, 0.08, 0.11, 0.14, 0.16, 0.18, 0.20, 0.22, 0.24, 0.27, 0.30, 0.33, 0.36, 0.39]
     distances = [3, 5, 7, 9, 11, 13]
-    thresholds = [0.7, 0.3, 0.2, 0.1, 0.05, 0.01]
+    thresholds = [0.7, 0.3, 0.2, 0.1, 0.05]
 
     assert noise in noise_vals
     assert distance in distances
 
-    iteration = 'ff17' if model_type != 'qectransformer' else 'ff18'
+    iteration = 'ff18' if model_type != 'qectransformer' else 'ff17'
     eval_what = 'log_error_rate' if task == 400 else 'val_loss'
     mode = 'depolarizing'
     pretrained_model = iteration + '_' + str(distance) + '_' + str(noise_vals.index(noise) - 1)
@@ -431,7 +442,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
         # Plot
         if not ax:
             fig, ax = plt.subplots(figsize=(1.15 * 6.4, 1.15 * 4.8))
-        coloring = ['blue', 'red', 'green', 'black', 'powderblue', 'orange']
+        coloring = ['blue', 'red', 'green', 'black', 'orange', 'orange']
 
         xs = []
         ys = []
@@ -588,7 +599,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
         # plt.savefig('plots/CI_depolarizing_9.svg')
         # plt.show()
     elif task == 400:
-        thresholds = [0.7, 0.3, 0.2, 0.1, 0.05, 0.01]
+        thresholds = [0.7, 0.3, 0.2, 0.1, 0.05]
         distances = [3, 5, 7, 9, 11]
 
         # get dictionaries
@@ -598,11 +609,11 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
         # scaling error rate
         fig, ax = plt.subplots()
         # for i, dist in enumerate(distances):
-        coloring = ['blue', 'red', 'green', 'black', 'powderblue', 'orange']
+        coloring = ['blue', 'red', 'green', 'black', 'orange', 'orange']
 
         # MWPM
         for i, dist in enumerate([3, 5, 7, 9]):
-            dict = torch.load("data/{0}_{1}_{2}_mwpm.pt".format(eval_what, iteration, dist))
+            dict = torch.load("data/{0}_cc_{1}_mwpm.pt".format(eval_what, dist))
             n = list(dict.keys())
             pr = list(dict.values())  # list of tuples containing mean, uplimit, lowlimit
             # get here median, upper error bar, lower error bar
@@ -656,7 +667,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
 
         for i, dist in enumerate([3, 5, 7, 9]):
             # iteration = 'ff14' if dist <= 7 else 'ff15'
-            dict = torch.load("data/{0}_{1}_{2}_mwpm.pt".format(eval_what, iteration, dist))
+            dict = torch.load("data/{0}_cc_{1}_mwpm.pt".format(eval_what, dist))
             n = list(dict.keys())
             pr = list(dict.values())  # list of tuples containing mean, uplimit, lowlimit
             # get here median, upper error bar, lower error bar
@@ -758,7 +769,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
 
                 ax1.errorbar(n, pr_m, yerr=(pr_d, pr_u), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label=r'd={0}_{2}={1}'.format(dist, 1 - t, r'$\sqrt{c}$'), color=coloring[i + 2])
+                             label=r'd={0}_{2}={1}'.format(dist, 1 - t, r'$\sqrt{c}$'), color=lighten(coloring[i+2], amounts[1-t]))
 
             # crossings for p_L
             Ls = [7, 9, 11]
@@ -813,7 +824,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
 
                 ax2.errorbar(n, pr_m, yerr=(np.sqrt(pr_m / 100000)), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i + 1])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i+2], amounts[1-t]))
 
                 xs.append(n)
                 ys.append(pr_m)
@@ -855,7 +866,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
         color_legend = [Patch(facecolor=color, edgecolor=color, label=f'd={distances[i + 2]}')
                         for i, color in enumerate(coloring[2:len(distances)])]
 
-        style_legend = [Line2D([0], [0], color='black', marker=markers[i], markersize=4, linestyle=ls,
+        style_legend = [Line2D([0], [0], color=lighten('black', amounts[1-thresholds[1+i]]), marker=markers[i], markersize=4, linestyle=ls,
                                label=r'{0}={1}'.format(r'$\sqrt{c}$', 1 - thresholds[i + 1]))
                         for i, ls in enumerate(styles[:len(thresholds[1:])])]
 
@@ -891,7 +902,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
                     pr_d = pr_d[:-1]
                 ax1.errorbar(n[1:], pr_m[1:], yerr=(pr_d[1:], pr_u[1:]), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i + 1])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i+2], amounts[1-t]))
 
 
         plt.grid()
@@ -902,7 +913,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
         color_legend = [Patch(facecolor=color, edgecolor=color, label=f'd={distances[i + 2]}')
                         for i, color in enumerate(coloring[2:len(distances)])]
 
-        style_legend = [Line2D([0], [0], color='black', marker=markers[i], markersize=4, linestyle=ls,
+        style_legend = [Line2D([0], [0], color=lighten('black', amounts[1-thresholds[1+i]]), marker=markers[i], markersize=4, linestyle=ls,
                                label=r'{0}={1}'.format(r'$\sqrt{c}$', 1 - thresholds[i + 1]))
                         for i, ls in enumerate(styles[:len(thresholds[1:])])]
 
@@ -924,7 +935,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
 
                 ax2.errorbar(n[1:], pr_m[1:], yerr=(np.sqrt(pr_m[1:] / 100000)), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i + 2])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i+2], amounts[1-t]))
 
         plt.grid()
         ax2.set_xlim(0.019, 0.3)
@@ -939,7 +950,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
         color_legend = [Patch(facecolor=color, edgecolor=color, label=f'd={distances[i + 2]}')
                         for i, color in enumerate(coloring[2:len(distances)])]
 
-        style_legend = [Line2D([0], [0], color='black', marker=markers[i], markersize=4, linestyle=ls,
+        style_legend = [Line2D([0], [0], color=lighten('black', amounts[1-thresholds[1+i]]), marker=markers[i], markersize=4, linestyle=ls,
                                label=r'{0}={1}'.format(r'$\sqrt{c}$', 1 - thresholds[i + 1]))
                         for i, ls in enumerate(styles[:len(thresholds[1:])])]
 
@@ -1179,7 +1190,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
 
                 ax.plot(n, pr_m / pr_abort, marker=markers[j], markersize=5,
                         linestyle=styles[j],
-                        label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i + 2])
+                        label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i+2], amounts[1-t]))
 
         ax.set_ylabel("$p_{L}/p_{abort}$", fontsize=14)
         ax.set_xlabel(r'$p$', fontsize=14)
@@ -1188,7 +1199,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
         color_legend = [Patch(facecolor=color, edgecolor=color, label=f'd={distances[i + 2]}')
                         for i, color in enumerate(coloring[2:len(distances) - 1])]
 
-        style_legend = [Line2D([0], [0], color='black', marker=markers[i], markersize=4, linestyle=ls,
+        style_legend = [Line2D([0], [0], color=lighten('black', amounts[1-thresholds[1+i]]), marker=markers[i], markersize=4, linestyle=ls,
                                label=f'c={1 - thresholds[i + 2]}')
                         for i, ls in enumerate(styles[:len(thresholds[2:])])]
 
@@ -1200,7 +1211,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
         plt.show()
     elif task == 9:  # Finite size effects of d=3: Compare abort probability to theoretical expectation
         noises = np.arange(0., 0.4, 0.01)
-        coloring = ['blue', 'red', 'green', 'yellow', 'cyan']
+        coloring = ['blue', 'red', 'green', 'black', 'orange']
         linestyles = ['dashed', 'solid', 'dotted', 'dashdot']
         markers = ['o', 'x', 'v', '^']
         distances = [3]
@@ -1346,7 +1357,7 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, 
         plt.show()
     elif task == 90:  # MLD post-selection vs split MLD post-selection: comparison for distance 3
         noises = np.arange(0., 0.4, 0.01)
-        coloring = ['blue', 'red', 'green', 'yellow', 'cyan']
+        coloring = ['blue', 'red', 'green', 'black', 'orange']
         linestyles = ['dashed', 'solid', 'dotted', 'dashdot', 'dashed', 'solid', 'dotted', 'dashdot']
         thresholds = [0.11, 0.06]
 
@@ -1517,7 +1528,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
     assert noise in noise_vals
     assert distance in distances
 
-    iteration = 'ph18' if model_type != 'qectransformer' else 'ph19'
+    iteration = 'ph18' if model_type == 'qectransformer' else 'ph19'
     if iteration == 'ph19' and model_type == 'qecVT':
         assert distance >= 7
     eval_what = 'log_error_rate' if task == 400 else 'val_loss'
@@ -1644,7 +1655,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
         # Plot
         if not ax:
             fig, ax = plt.subplots(figsize=(1.15 * 6.4, 1.15 * 4.8))
-        coloring = ['blue', 'red', 'green', 'yellow']
+        coloring = ['blue', 'red', 'green', 'black']
         xs = []
         ys = []
         y_errs = []
@@ -1791,14 +1802,14 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
         # NN decoder without post-selection, linear
         fig, ax = plt.subplots()
         # for i, dist in enumerate(distances):
-        coloring = ['blue', 'red', 'green', 'black', 'powderblue', 'orange']
+        coloring = ['blue', 'red', 'green', 'black', 'orange', 'orange']
         markers = ['o', 'x', 'v', '^', '*', 'v']
         styles = ['dashed', 'dotted', 'dashdot', 'dotted', 'dashed', 'dotted', 'dashdot', 'dotted']
 
         # MWPM
         for i, dist in enumerate(distances):
             # iteration = 'ff14' if dist <= 7 else 'ff15'
-            dict = torch.load("data/{0}_{1}_{2}_mwpm.pt".format(eval_what, iteration, dist))
+            dict = torch.load("data/{0}_ph_{1}_mwpm.pt".format(eval_what, dist))
             n = list(dict.keys())
             pr = list(dict.values())  # list of tuples containing mean, uplimit, lowlimit
             # get here median, upper error bar, lower error bar
@@ -1809,7 +1820,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
             ax.errorbar(n, pr_m, yerr=(pr_d, pr_u), marker='v', markersize=5, linestyle='dashed',
                         label='d={}_mwpm'.format(dist), color=coloring[i])
 
-        t = 0.5
+        t = 0.7
         xs = []
         ys = []
         y_errs = []
@@ -1870,7 +1881,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
         fig, ax = plt.subplots()
         for i, dist in enumerate(distances):
             # iteration = 'ff14' if dist <= 7 else 'ff15'
-            dict = torch.load("data/{0}_{1}_{2}_mwpm.pt".format(eval_what, iteration, dist))
+            dict = torch.load("data/{0}_ph_{1}_mwpm.pt".format(eval_what, dist))
             n = list(dict.keys())
             pr = list(dict.values())  # list of tuples containing mean, uplimit, lowlimit
             # get here median, upper error bar, lower error bar
@@ -1880,7 +1891,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
 
             ax.errorbar(n, pr_m, yerr=(pr_d, pr_u), marker='v', markersize=5, linestyle='dashed',
                         label='d={}_mwpm'.format(dist), color=coloring[i])
-        t = 0.5
+        t = 0.7
         for i, dist in enumerate(distances):
             # iteration = 'ff14' if dist <= 7 else 'ff15'
             dict = torch.load("data/{0}_{1}_{2}_{3}.pt".format(eval_what, iteration, dist, t))
@@ -1938,7 +1949,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
 
                 ax1.errorbar(n, pr_m, yerr=(pr_d, pr_u), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i], amounts[1-t]))
 
         # plt.grid()
         ax1.set_xlabel("$p$", fontsize=16)
@@ -1958,7 +1969,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
 
                 ax2.errorbar(n, pr_m, yerr=(np.sqrt(np.array(pr_m) / 100000)), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i], amounts[1-t]))
 
         # noise, abort_prob = get_abort_probability(thresholds, 5)
 
@@ -1978,7 +1989,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
         color_legend = [Patch(facecolor=color, edgecolor=color, label=f'd={distances[i]}')
                         for i, color in enumerate(coloring[:len(distances)])]
 
-        style_legend = [Line2D([0], [0], color='black', marker=markers[i], markersize=4, linestyle=ls,
+        style_legend = [Line2D([0], [0], color=lighten('black', amounts[1-thresholds[1+i]]), marker=markers[i], markersize=4, linestyle=ls,
                                label=r'{0}={1}'.format(r'$\sqrt{c}$', 1 - thresholds[i + 1]))
                         for i, ls in enumerate(styles[:len(thresholds[1:])])]
 
@@ -2017,7 +2028,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
 
                 ax1.errorbar(n, pr_m, yerr=(pr_d, pr_u), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i], amounts[1-t]))
 
             Ls = [3, 5]
             guess_pc = 0.05
@@ -2072,7 +2083,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
 
                 ax2.errorbar(n, pr_m, yerr=(np.sqrt(pr_m / 100000)), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i], amounts[1-t]))
 
             Ls = [3, 5]
             guess_pc = 0.05
@@ -2112,7 +2123,7 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, model_di
         color_legend = [Patch(facecolor=color, edgecolor=color, label=f'd={distances[i]}')
                         for i, color in enumerate(coloring[:len(distances)])]
 
-        style_legend = [Line2D([0], [0], color='black', marker=markers[i], markersize=4, linestyle=ls,
+        style_legend = [Line2D([0], [0], color=lighten('black', amounts[1-thresholds[1+i]]), marker=markers[i], markersize=4, linestyle=ls,
                                label=r'{0}={1}'.format(r'$\sqrt{c}$', 1 - thresholds[i + 1]))
                         for i, ls in enumerate(styles[:len(thresholds[1:])])]
 
@@ -2132,7 +2143,7 @@ def run_circuit_level(task, noise, distance, model_type, lr, device, model_dict,
                       pretrained_model=None, ax=None):
     noise_vals = [1e-3, 2e-3, 3e-3, 4e-3, 6e-3, 8e-3, 0.01, 0.014]
     distances = [3, 5, 7]
-    thresholds = [0.5, 0.3, 0.15, 0.05]
+    thresholds = [0.7, 0.3, 0.2, 0.1, 0.05]
 
     assert noise in noise_vals
     assert distance in distances
@@ -2423,7 +2434,7 @@ def run_circuit_level(task, noise, distance, model_type, lr, device, model_dict,
 
         # Plots
         fig, ax = plt.subplots()
-        coloring = ['blue', 'red', 'green', 'black', 'powderblue', 'orange']
+        coloring = ['blue', 'red', 'green', 'black', 'orange', 'orange']
         markers = ['o', 'x', 'v', '^', '*', 'v']
         styles = ['dashed', 'dotted', 'dashdot', 'dotted', 'dashed', 'dotted', 'dashdot', 'dotted']
 
@@ -2604,7 +2615,7 @@ def run_circuit_level(task, noise, distance, model_type, lr, device, model_dict,
 
                 ax1.errorbar(n, pr_m, yerr=(pr_d, pr_u), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i], amounts[1-t]))
 
         # plt.grid()
         ax1.set_xlabel("$p$", fontsize=16)
@@ -2625,7 +2636,7 @@ def run_circuit_level(task, noise, distance, model_type, lr, device, model_dict,
 
                 ax2.errorbar(n, pr_m, yerr=(np.sqrt(np.array(pr_m) / 100000)), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i], amounts[1-t]))
 
         ax2.set_xlabel("$p$", fontsize=16)
         ax2.set_ylabel(r'$p_{abort}$', fontsize=16)
@@ -2641,7 +2652,7 @@ def run_circuit_level(task, noise, distance, model_type, lr, device, model_dict,
         color_legend = [Patch(facecolor=color, edgecolor=color, label=f'd={distances[i]}')
                         for i, color in enumerate(coloring[:len(distances)])]
 
-        style_legend = [Line2D([0], [0], color='black', marker=markers[i], markersize=4, linestyle=ls,
+        style_legend = [Line2D([0], [0], color=lighten('black', amounts[1-thresholds[1+i]]), marker=markers[i], markersize=4, linestyle=ls,
                                label=r'{0}={1}'.format(r'$\sqrt{c}$', 1 - thresholds[i + 1]))
                         for i, ls in enumerate(styles[:len(thresholds[1:])])]
 
@@ -2680,7 +2691,7 @@ def run_circuit_level(task, noise, distance, model_type, lr, device, model_dict,
 
                 ax1.errorbar(n, pr_m, yerr=(pr_d, pr_u), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i], amounts[1-t]))
 
         Ls = [3, 5, 7]
         guess_pc = 0.003
@@ -2731,7 +2742,7 @@ def run_circuit_level(task, noise, distance, model_type, lr, device, model_dict,
 
                 ax2.errorbar(n, pr_m, yerr=(np.sqrt(pr_m / 100000)), marker=markers[j], markersize=5,
                              linestyle=styles[j],
-                             label='d={0}_c={1}'.format(dist, 1 - t), color=coloring[i])
+                             label='d={0}_c={1}'.format(dist, 1 - t), color=lighten(coloring[i], amounts[1-t]))
 
                 xs.append(n)
                 ys.append(pr_m)
@@ -2774,7 +2785,7 @@ def run_circuit_level(task, noise, distance, model_type, lr, device, model_dict,
         color_legend = [Patch(facecolor=color, edgecolor=color, label=f'd={distances[i]}')
                         for i, color in enumerate(coloring[:len(distances)])]
 
-        style_legend = [Line2D([0], [0], color='black', marker=markers[i], markersize=4, linestyle=ls,
+        style_legend = [Line2D([0], [0], color=lighten('black', amounts[1-thresholds[1+i]]), marker=markers[i], markersize=4, linestyle=ls,
                                label=r'{0}={1}'.format(r'$\sqrt{c}$', 1 - thresholds[i + 1]))
                         for i, ls in enumerate(styles[:len(thresholds[1:])])]
 
@@ -2841,13 +2852,12 @@ if __name__ == '__main__':
     # hyperparameters
 
     # noise_model = 'depolarizing'
-    noise_model = 'phenomenological'
-    # noise_model = 'circuit-level'
+    # noise_model = 'phenomenological'
+    noise_model = 'circuit-level'
 
     distance = 3
     task = 1
-    noise = 0.04
+    noise = 0.002
 
     main_qec(distance, task, noise_model, noise)
 
-    plot_all()
