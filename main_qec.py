@@ -80,7 +80,7 @@ def binary_to_decimal(binary):
 
 def main_qec(distance, task, noise_model, noise):
     lr = 1e-4
-    num_epochs = 150
+    num_epochs = 250
     batch_size = 1000
     data_size = 1000000
     if torch.backends.mps.is_available():
@@ -296,10 +296,10 @@ def generate_loss_plots(it, number, optimum_loss_analysis=False, p0=None):
     plt.show()
 
 
-def run_depolarizing(task, noise, distance, model_type, lr, device, num_epochs, batch_size, model_dict, data_size,
-                     pretrained_model=None):
+def run_depolarizing(task, noise, distance, model_type, lr, device, model_dict, num_epochs=600, batch_size=500, data_size=1000000,
+                     pretrained_model=None, ax=None):
     noise_vals = [0.01, 0.02, 0.05, 0.08, 0.11, 0.14, 0.16, 0.18, 0.20, 0.22, 0.24, 0.27, 0.30, 0.33, 0.36, 0.39]
-    distances = [3, 5, 7, 9, 11]
+    distances = [3, 5, 7, 9, 11, 13]
     thresholds = [0.7, 0.3, 0.2, 0.1, 0.05, 0.01]
 
     assert noise in noise_vals
@@ -429,7 +429,8 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, num_epochs, 
         merge_dictionaries(distances=distances, noise_vals=noise_vals, eval_what='val_loss', iteration=iteration)
 
         # Plot
-        fig, ax = plt.subplots(figsize=(1.15 * 6.4, 1.15 * 4.8))
+        if not ax:
+            fig, ax = plt.subplots(figsize=(1.15 * 6.4, 1.15 * 4.8))
         coloring = ['blue', 'red', 'green', 'black', 'powderblue', 'orange']
 
         xs = []
@@ -577,15 +578,15 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, num_epochs, 
             inset_collapse.set_ylabel(r'$I / \log 2$', fontsize=12)
             inset_collapse.set_title('data collapse', fontsize=12)
 
-        plt.suptitle('code capacity, depolarizing', fontsize=14)
-        plt.tight_layout()
+        ax.set_title('code capacity, depolarizing', fontsize=14)
+        # plt.tight_layout()
 
         ax.axvline(pc, ymin=0, ymax=1, color='silver', linewidth=1)
         inset.axvline(pc, ymin=0, ymax=1, color='silver', linewidth=1)
         inset_collapse.axvline(0, ymin=0, ymax=1, color='silver', linewidth=1)
-        plt.tight_layout()
-        plt.savefig('plots/CI_depolarizing_9.svg')
-        plt.show()
+        # plt.tight_layout()
+        # plt.savefig('plots/CI_depolarizing_9.svg')
+        # plt.show()
     elif task == 400:
         thresholds = [0.7, 0.3, 0.2, 0.1, 0.05, 0.01]
         distances = [3, 5, 7, 9, 11]
@@ -1506,8 +1507,8 @@ def run_depolarizing(task, noise, distance, model_type, lr, device, num_epochs, 
         raise ValueError(f'Unsupported task: {task}')
 
 
-def run_phenomenological(task, noise, distance, model_type, lr, device, num_epochs, batch_size, model_dict, data_size,
-                         pretrained_model=None):
+def run_phenomenological(task, noise, distance, model_type, lr, device, model_dict, num_epochs=600, batch_size=500, data_size=1000000,
+                         pretrained_model=None, ax=None):
     noise_vals = [2e-3, 5e-3, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.1,
                   0.12]
     distances = [3, 5]
@@ -1641,7 +1642,8 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, num_epoc
         merge_dictionaries(distances=distances, noise_vals=noise_vals, eval_what='val_loss', iteration=iteration)
 
         # Plot
-        fig, ax = plt.subplots(figsize=(1.15 * 6.4, 1.15 * 4.8))
+        if not ax:
+            fig, ax = plt.subplots(figsize=(1.15 * 6.4, 1.15 * 4.8))
         coloring = ['blue', 'red', 'green', 'yellow']
         xs = []
         ys = []
@@ -1774,13 +1776,13 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, num_epoc
         legend_handles = color_legend + style_legend  # + auto_handles
         ax.legend(handles=legend_handles, loc='best', fontsize=12, markerscale=1.5)
 
-        plt.suptitle(f'{mode}', fontsize=14)
-        plt.tight_layout()
+        ax.set_title(f'{mode}', fontsize=14)
+        # plt.tight_layout()
         ax.axvline(pc, ymin=0, ymax=1, color='silver', linewidth=1)
         inset.axvline(pc, ymin=0, ymax=1, color='silver', linewidth=1)
         inset_collapse.axvline(0, ymin=0, ymax=1, color='silver', linewidth=1)
-        plt.savefig(f'CI_{mode}.svg')
-        plt.show()
+        # plt.savefig(f'CI_{mode}.svg')
+        # plt.show()
     elif task == 400:
         # get dictionaries
         merge_dictionaries(distances, noise_vals, 'log_error_rate', iteration, thresholds)
@@ -2126,10 +2128,10 @@ def run_phenomenological(task, noise, distance, model_type, lr, device, num_epoc
         raise ValueError(f'Unknown task number: {task}')
 
 
-def run_circuit_level(task, noise, distance, model_type, lr, device, num_epochs, batch_size, model_dict, data_size,
-                      pretrained_model=None):
+def run_circuit_level(task, noise, distance, model_type, lr, device, model_dict, num_epochs=600, batch_size=500, data_size=1000000,
+                      pretrained_model=None, ax=None):
     noise_vals = [1e-3, 2e-3, 3e-3, 4e-3, 6e-3, 8e-3, 0.01, 0.014]
-    distances = [3, 5]
+    distances = [3, 5, 7]
     thresholds = [0.5, 0.3, 0.15, 0.05]
 
     assert noise in noise_vals
@@ -2258,7 +2260,8 @@ def run_circuit_level(task, noise, distance, model_type, lr, device, num_epochs,
         merge_dictionaries(distances=distances, noise_vals=noise_vals, eval_what='val_loss', iteration=iteration)
 
         # Plot
-        fig, ax = plt.subplots(figsize=(1.15 * 6.4, 1.15 * 4.8))
+        if not ax:
+            fig, ax = plt.subplots(figsize=(1.15 * 6.4, 1.15 * 4.8))
         coloring = ['blue', 'red', 'green', 'black']
         xs = []
         ys = []
@@ -2406,14 +2409,14 @@ def run_circuit_level(task, noise, distance, model_type, lr, device, num_epochs,
 
         # p_lambda = np.loadtxt('plambda_ci_5.txt')
         # plt.plot(np.arange(0.0, 0.12, 0.001), p_lambda, label=r'$p_5(\lambda | s) = p_5(\lambda)$', color='cyan')
-        plt.suptitle(f'{mode}', fontsize=14)
-        plt.tight_layout()
+        ax.set_title(f'{mode}', fontsize=14)
+        # plt.tight_layout()
 
         ax.axvline(pc, ymin=0, ymax=1, color='silver', linewidth=1)
         inset.axvline(pc, ymin=0, ymax=1, color='silver', linewidth=1)
         inset_collapse.axvline(0, ymin=0, ymax=1, color='silver', linewidth=1)
-        plt.savefig(f'CI_{mode}.svg')
-        plt.show()
+        # plt.savefig(f'CI_{mode}.svg')
+        # plt.show()
     elif task == 400:
         # get dictionaries
         merge_dictionaries(distances, noise_vals, 'log_error_rate', iteration, thresholds)
@@ -2846,3 +2849,5 @@ if __name__ == '__main__':
     noise = 0.04
 
     main_qec(distance, task, noise_model, noise)
+
+    plot_all()

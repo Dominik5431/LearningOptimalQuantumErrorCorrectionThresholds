@@ -1,3 +1,5 @@
+from functools import partial
+
 import numpy as np
 import scipy
 import torch
@@ -7,7 +9,7 @@ from numba import njit
 # import fssa
 
 from matplotlib import pyplot as plt
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, minimize
 from tqdm import tqdm
 
 """
