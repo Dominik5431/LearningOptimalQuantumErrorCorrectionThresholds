@@ -40,11 +40,6 @@ Below are the available command-line arguments:
   - `"plot_log_error"`: Plot logical error rate
   - `"attention"`: Visualize attention weights
   - `"loss"`: Plot loss function during training
-  - `"plot-single-latent"`: Plot a single latent space representation
-  - `"reconstruction"`: Visualize reconstructed data
-  - `"raw-data"`: Visualize raw data
-  - `"plot-latent-reconstruction"`: Plot latent space reconstruction
-  - `"plot-vs-raw"`: Plot comparison between latent space and raw data
 
 ### Additional Options:
 - `--distance`  
