@@ -1,6 +1,6 @@
-# Machine Learning the Optimal Error Correction Threshold
+# Machine Learning Optimal Quantum Error Correction Thresholds
 
-This repository contains code for the paper *"Learning Optimal Quantum Error Correction Thresholds"*.
+This repository contains code for the paper *"Machine Learning Optimal Quantum Error Correction Thresholds"*.
 
 ## Virtual Environment Setup
 
